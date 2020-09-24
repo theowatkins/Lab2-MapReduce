@@ -1,4 +1,4 @@
-package main
+
 
 //
 // a word-count application "plugin" for MapReduce.

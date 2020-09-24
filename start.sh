@@ -1,4 +1,2 @@
-go build -buildmode=plugin wc.go
-rm mr-out*
-go run mrsequential.go wc.so pg*.txt
+go run mrsequential.go pg*.txt
 more mr-out-0
