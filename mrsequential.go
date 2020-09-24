@@ -90,6 +90,11 @@ func main() {
 	ofile.Close()
 }
 
+/*
+ * Functions are added here to avoid using plugins. Plugins
+ * are not currently supported on windows.
+ */
+
 func Map(filename string, contents string) []mr.KeyValue {
 	// function to detect word separators.
 	ff := func(r rune) bool { return !unicode.IsLetter(r) }
