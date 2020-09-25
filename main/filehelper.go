@@ -7,21 +7,26 @@ import (
 	"strings"
 )
 
-func aggregateFileContents(fileNames []string) string{
-	allContent := ""
-	for _, filename := range fileNames {
-		file, err := os.Open(filename)
-		if err != nil {
-			log.Fatalf("cannot open %v", filename)
-		}
-		content, err := ioutil.ReadAll(file)
-		if err != nil {
-			log.Fatalf("cannot read %v", filename)
-		}
-		file.Close()
-		allContent += string(content) + " "
+func aggregateFileContents(filePaths []string) string{
+	aggregateContent := ""
+	for _, filePath := range filePaths {
+		content := readFileContents(filePath)
+		aggregateContent += string(content) + " " //separates prev from next file
 	}
-	return strings.TrimSpace(allContent)
+	return strings.TrimSpace(aggregateContent)
+}
+
+func readFileContents(filePath string)string{
+	file, err := os.Open(filePath)
+	if err != nil {
+		log.Fatalf("cannot open %v", filePath)
+	}
+	content, err := ioutil.ReadAll(file)
+	if err != nil {
+		log.Fatalf("cannot read %v", filePath)
+	}
+	file.Close()
+	return string(content)
 }
 
 func splitStringIntoChunks(content string, numChunks int) []string {
