@@ -12,34 +12,29 @@ import (
 	"strings"
 	"unicode"
 )
-import "./mr"
 import "os"
 import "log"
 import "io/ioutil"
 import "sort"
 
-// for sorting by key.
-type ByKey []mr.KeyValue
 
-// for sorting by key.
-func (a ByKey) Len() int           { return len(a) }
-func (a ByKey) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a ByKey) Less(i, j int) bool { return a[i].Key < a[j].Key }
 
-func main() {
+
+
+func mainSequential() { // renamed bc conflict with main in distributed version
 	if len(os.Args) < 2 {
 		fmt.Fprintf(os.Stderr, "Usage: mrsequential xxx.so inputfiles...\n")
 		os.Exit(1)
 	}
 
-	mapf, reducef := Map, Reduce
+	mapf, reducef := SequentialMap, SequentialReduce
 
 	//
 	// read each input file,
-	// pass it to Map,
-	// accumulate the intermediate Map output.
+	// pass it to distributedMap,
+	// accumulate the intermediate distributedMap output.
 	//
-	intermediate := []mr.KeyValue{}
+	intermediate := []KeyValue{}
 	for _, filename := range os.Args[1:] {
 		file, err := os.Open(filename)
 		if err != nil {
@@ -50,6 +45,7 @@ func main() {
 			log.Fatalf("cannot read %v", filename)
 		}
 		file.Close()
+		//TODO: Split content into as many chunks
 		kva := mapf(filename, string(content))
 		intermediate = append(intermediate, kva...)
 	}
@@ -95,16 +91,16 @@ func main() {
  * are not currently supported on windows.
  */
 
-func Map(filename string, contents string) []mr.KeyValue {
+func SequentialMap(filename string, contents string) []KeyValue {
 	// function to detect word separators.
 	ff := func(r rune) bool { return !unicode.IsLetter(r) }
 
 	// split contents into an array of words.
 	words := strings.FieldsFunc(contents, ff)
 
-	kva := []mr.KeyValue{}
+	kva := []KeyValue{}
 	for _, w := range words {
-		kv := mr.KeyValue{w, "1"}
+		kv := KeyValue{w, "1"}
 		kva = append(kva, kv)
 	}
 	return kva
@@ -115,7 +111,7 @@ func Map(filename string, contents string) []mr.KeyValue {
 // map tasks, with a list of all the values created for that key by
 // any map task.
 //
-func Reduce(key string, values []string) string {
+func SequentialReduce(key string, values []string) string {
 	// return the number of occurrences of this word.
 	return strconv.Itoa(len(values))
 }
