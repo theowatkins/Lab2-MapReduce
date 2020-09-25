@@ -1,1 +1,1 @@
-go test -v
+cd main && go test -v
