@@ -16,27 +16,38 @@ func main() {
 		os.Exit(1)
 	}
 
-	mapFunction, reduceFunction := distributedMap, distributedReduce //Plugins would be called here
+	mapFunction := distributedMap //Plugins would be called here
 
 	//Step 1. Read input files and pass content into map
 	allContent := aggregateFileContents(os.Args[1:])
 	chunks := splitStringIntoChunks(allContent, NumberOfMapTasks)
 
 	//Step 2. Start map workers
-	mapResponseChannels := createInitializedChannelList(NumberOfMapTasks)
-	var wg sync.WaitGroup
+	//mapResponseChannels := createInitializedChannelList(NumberOfMapTasks)
+	mapChannel := make(chan []KeyValue)
+	wg := new(sync.WaitGroup)
 	for chunkId, chunk := range chunks {
 		wg.Add(1)
-		go mapJob(chunkId, chunk, mapFunction,mapResponseChannels[chunkId], &wg)
+		go mapJob(chunkId, chunk, mapFunction, mapChannel, wg)
 	}
-	wg.Wait() //wait for all map tasks to finish
+	go func(wg *sync.WaitGroup, mapChannel chan []KeyValue) {
+		wg.Wait()
+		close(mapChannel)
+	}(wg, mapChannel)
 
 	//Step 3. Buffer intermediate pairs into memory
 	intermediateKeyValuePairs := []KeyValue{}
-	for _, currentChannel := range mapResponseChannels {
-		currentChannelKeyValuePairs := <- currentChannel
-		intermediateKeyValuePairs = append(intermediateKeyValuePairs, currentChannelKeyValuePairs...)
+	
+	for i := range mapChannel {
+		for j := 0; j < len(i); j++ {
+			intermediateKeyValuePairs = append(intermediateKeyValuePairs, i[j])
+		}
 	}
+
+	// for _, currentChannel := range mapResponseChannels {
+	// 	currentChannelKeyValuePairs := <- currentChannel
+	// 	intermediateKeyValuePairs = append(intermediateKeyValuePairs, currentChannelKeyValuePairs...)
+	// }
 
 	//Step 4. Create input chunks for reduce workers
 	//TODO: Create R chunks, one for each reduce task
@@ -44,7 +55,8 @@ func main() {
 
 	//Step 5. Reduce each chunk and aggregate output
 	//TODO: Create many reduce tasks
-	reduceIntermediateKeyValuePairs(intermediateKeyValuePairs, reduceFunction, OutputFileName)
+	reduceChannel := make(chan string)
+	reduceIntermediateKeyValuePairs(intermediateKeyValuePairs, reduceJob, OutputFileName, reduceChannel, wg)
 }
 
 /* Calls given reduceFunction on given intermediate key-value pairs
@@ -53,13 +65,19 @@ func main() {
  */
 func reduceIntermediateKeyValuePairs(
 	intermediatePairs []KeyValue,
-	reduceFunction func(key string, values []string) string,
+	reduceJob func(jobId int,
+		key string,
+		values []string,
+		responseChannel chan string,
+		wg *sync.WaitGroup),
 	outputFilePath string,
-	){
+	reduceChannel chan string,
+	wg *sync.WaitGroup) {
 
 	outputFile, _ := os.Create(outputFilePath)
 
 	i := 0
+	jobCount := 0
 	for i < len(intermediatePairs) {
 		j := i + 1
 		for j < len(intermediatePairs) && intermediatePairs[j].Key == intermediatePairs[i].Key {
@@ -69,14 +87,25 @@ func reduceIntermediateKeyValuePairs(
 		for k := i; k < j; k++ {
 			values = append(values, intermediatePairs[k].Value)
 		}
-		output := reduceFunction(intermediatePairs[i].Key, values)
-
-		// this is the correct format for each line of Reduce output.
-		fmt.Fprintf(outputFile, "%v %v\n", intermediatePairs[i].Key, output)
-
+		wg.Add(1)
+		go reduceJob(jobCount, intermediatePairs[i].Key, values, reduceChannel, wg)
+		jobCount++
 		i = j
 	}
+	
+	go func(wg *sync.WaitGroup, reduceChannel chan string) {
+		wg.Wait()
+		close(reduceChannel)
+	}(wg, reduceChannel)
 
+	for s := range reduceChannel {
+		fmt.Fprintf(outputFile, s)
+	}
+
+	// for z := 0; z < jobCount; z++ {
+	// 	currentChannelOutput := <- reduceChannel
+	// 	fmt.Fprintf(outputFile, currentChannelOutput)
+	// } 
 	outputFile.Close()
 }
 

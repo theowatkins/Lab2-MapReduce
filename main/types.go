@@ -26,3 +26,11 @@ func createInitializedChannelList(nChannels int)[]chan []KeyValue {
 	}
 	return channels
 }
+
+func createInitializedReduceChannelList(nChannels int)[]chan string {
+	channels := make([]chan string, nChannels)
+	for channelIndex := 0; channelIndex < nChannels; channelIndex++ {
+		channels[channelIndex] = make(chan string)
+	}
+	return channels
+}
