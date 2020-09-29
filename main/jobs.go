@@ -13,7 +13,13 @@ func mapJob(
 	wg *sync.WaitGroup) {
 		defer wg.Done()
 		//TODO: Implement Heartbeat protocol lol
-		intermediateKeyValuePairs := mapFunction(chunk) // TODO: Actually give it the file name
+		var intermediateKeyValuePairs []KeyValue
+		var workTask sync.WaitGroup
+		workTask.Add(1)
+		go func () {
+			intermediateKeyValuePairs = mapFunction(chunk) // TODO: Actually give it the file name
+		}()
+		workTask.Wait()
 		responseChannel <- intermediateKeyValuePairs
 }
 
