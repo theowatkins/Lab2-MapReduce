@@ -26,10 +26,13 @@ func main() {
 	//mapResponseChannels := createInitializedChannelList(NumberOfMapTasks)
 	mapChannel := make(chan []KeyValue)
 	wg := new(sync.WaitGroup)
+	neighborsChannels := createNeighborhood(NumberOfMapTasks)
+	fmt.Print("DOne with neighborhoods")
 	for chunkId, chunk := range chunks {
 		wg.Add(1)
-		go mapJob(chunkId, chunk, mapFunction, mapChannel, wg)
+		go mapJob(chunkId, chunk, mapFunction, mapChannel, wg, neighborsChannels[chunkId])
 	}
+
 	go func(wg *sync.WaitGroup, mapChannel chan []KeyValue) {
 		wg.Wait()
 		close(mapChannel)
@@ -58,6 +61,7 @@ func main() {
 	reduceChannel := make(chan string)
 	reduceIntermediateKeyValuePairs(intermediateKeyValuePairs, reduceJob, OutputFileName, reduceChannel, wg)
 }
+
 
 /* Calls given reduceFunction on given intermediate key-value pairs
  * Outputs is saved to given file path. Note, this is part of the original
