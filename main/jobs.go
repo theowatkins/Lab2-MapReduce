@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"sync"
+	"time"
 )
 
 func mapJob(
@@ -13,21 +14,23 @@ func mapJob(
 	responseChannel chan []KeyValue,
 	wg *sync.WaitGroup,
 	neighborsChannel NeighborChannels) {
+		fmt.Print("Job : ", jobId, "\n")
 		defer wg.Done()
 		//TODO: Implement Heartbeat protocol lol
 		var intermediateKeyValuePairs []KeyValue
-		//var workTask sync.WaitGroup
-		//workTask.Add(1)
-		//go func () {
-		//	intermediateKeyValuePairs = mapFunction(chunk) // TODO: Actually give it the file name
-		//	workTask.Done()
-		//}()
-		//quitHeartbeat := make(chan bool)
-		//go runHeartBeatThread(generateNodeId(jobId), neighborsChannel, quitHeartbeat)
+		var workTask sync.WaitGroup
+		workTask.Add(1)
+		go func () {
+			time.Sleep(time.Second * 5)
+			intermediateKeyValuePairs = mapFunction(chunk) // TODO: Actually give it the file name
+			workTask.Done()
+		}()
+		quitHeartbeat := make(chan bool)
+		go runHeartBeatThread(generateNodeId(jobId), neighborsChannel, quitHeartbeat)
 		intermediateKeyValuePairs = mapFunction(chunk)
-		//workTask.Wait() // job has completed
+		workTask.Wait() // job has completed
 		fmt.Print("Job finished: ", jobId, "\n")
-		//quitHeartbeat <- true
+		quitHeartbeat <- true
 		fmt.Print("closing quite heartbeat for Job: ", jobId, "\n")
 		responseChannel <- intermediateKeyValuePairs
 		fmt.Print("Job ", jobId, " done!\n")

@@ -27,32 +27,29 @@ func runHeartBeatThread(
 	id string,
 	neighborhoodChannels NeighborChannels,
 	quit chan bool){
-	//threadHeartbeat := Heartbeat{id, 0}
-	//threadTable := HeartbeatTable{make([]Heartbeat, 1)}
-	fmt.Print("Running heartbeat for ", id, "\n")
-	//for {
-	//	timeToUpdate := true
-	//	fmt.Print(timeToUpdate)
-	//	for _, neighborhoodChannel := range neighborhoodChannels {
-	//		select {
-	//			case <- quit:
-	//				timeToUpdate = false
-	//				fmt.Print("Quitting Job: ", id, "\n")
-	//				return
-	//			case newMessage := <- neighborhoodChannel:
-	//				updateHeartbeatTable(&threadTable, newMessage)
-	//			default:
-	//				if timeToUpdate {
-	//					fmt.Print("Updating Job: ", id, "\n")
-	//					timeToUpdate = false
-	//					threadHeartbeat.counter += 1
-	//					neighborhoodChannel <- threadHeartbeat
-	//					time.Sleep(TimeBetweenHeartbeats)
-	//					timeToUpdate = true
-	//				}
-	//			}
-	//	}
-	//}
+	fmt.Print("RUNNING INGING")
+	threadHeartbeat := Heartbeat{id, 0}
+	threadTable := HeartbeatTable{make([]Heartbeat, 1)}
+	for {
+		timeToUpdate := true
+		for _, neighborhoodChannel := range neighborhoodChannels {
+			select {
+				case <- quit:
+					close(quit)
+					return
+				case newMessage := <- neighborhoodChannel:
+					updateHeartbeatTable(&threadTable, newMessage)
+				default:
+					if timeToUpdate {
+						timeToUpdate = false
+						threadHeartbeat.counter += 1
+						neighborhoodChannel <- threadHeartbeat
+						time.Sleep(TimeBetweenHeartbeats)
+						timeToUpdate = true
+					}
+				}
+		}
+	}
 }
 
 func updateHeartbeatTable(table * HeartbeatTable, update Heartbeat) {

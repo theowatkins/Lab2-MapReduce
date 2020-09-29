@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sort"
 	"sync"
 )
 import "os"
@@ -22,36 +23,39 @@ func main() {
 	chunks := splitStringIntoChunks(allContent, NumberOfMapTasks)
 
 	//Step 2. Start map workers
-	//mapResponseChannels :=
-	mapChannels := createInitializedChannelList(NumberOfMapTasks)
-	wg := new(sync.WaitGroup)
+	mapChannel := make(chan []KeyValue)
+	var wg sync.WaitGroup
 	neighborsChannels := createNeighborhood(NumberOfMapTasks)
 	for chunkId, chunk := range chunks {
 		wg.Add(1)
-		go mapJob(chunkId, chunk, mapFunction, mapChannels[chunkId], wg, neighborsChannels[generateNodeId(chunkId)])
+		go mapJob(chunkId, chunk, mapFunction, mapChannel, &wg, neighborsChannels[generateNodeId(chunkId)])
+		fmt.Print("added job task\n")
 	}
-	print("Start WAIT\n")
-	wg.Wait()
-	print("BOBABOOSH")
-	////close(mapChannel)
-	//
-	//
-	////Step 3. Buffer intermediate pairs into memory
-	//intermediateKeyValuePairs := []KeyValue{}
-	//for i := range mapChannel {
-	//	for j := 0; j < len(i); j++ {
-	//		intermediateKeyValuePairs = append(intermediateKeyValuePairs, i[j])
-	//	}
-	//}
-	//
-	////Step 4. Create input chunks for reduce workers
-	////TODO: Create R chunks, one for each reduce task
-	//sort.Sort(ByKey(intermediateKeyValuePairs))
-	//
-	////Step 5. Reduce each chunk and aggregate output
-	////TODO: Create many reduce tasks
-	//reduceChannel := make(chan string)
-	//reduceIntermediateKeyValuePairs(intermediateKeyValuePairs, reduceJob, OutputFileName, reduceChannel, wg)
+	go func () {
+		wg.Wait()
+		fmt.Print("BOBABOOSH")
+		close(mapChannel)
+
+		//Step 3. Buffer intermediate pairs into memory
+		intermediateKeyValuePairs := []KeyValue{}
+		for i := range mapChannel {
+			for j := 0; j < len(i); j++ {
+				intermediateKeyValuePairs = append(intermediateKeyValuePairs, i[j])
+			}
+		}
+
+		//Step 4. Create input chunks for reduce workers
+		//TODO: Create R chunks, one for each reduce task
+		sort.Sort(ByKey(intermediateKeyValuePairs))
+
+		//Step 5. Reduce each chunk and aggregate output
+		//TODO: Create many reduce tasks
+		reduceChannel := make(chan string)
+		reduceIntermediateKeyValuePairs(intermediateKeyValuePairs, reduceJob, OutputFileName, reduceChannel, &wg)
+		fmt.Print("HELO\n")
+	}()
+
+	fmt.Print("hello")
 }
 
 
