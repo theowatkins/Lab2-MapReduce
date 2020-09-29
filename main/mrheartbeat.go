@@ -1,11 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"math/rand"
+	"strconv"
 	"time"
 )
 
-const MaxNumberOfNeighbors = 3
+const MaxNumberOfNeighbors = 1
+const TimeBetweenHeartbeats = time.Second
 
 type Heartbeat struct {
 	nodeId  string
@@ -16,29 +19,59 @@ type HeartbeatTable struct {
 	heartbeats []Heartbeat
 }
 
-type HeartbeatRelationship struct {
-	source int
-	target int
+type NodeChannels = map[string][] chan Heartbeat
+type NeighborChannels = [] chan Heartbeat
+type NeighborhoodAssignments = map[string] []string
+
+func runHeartBeatThread(
+	id string,
+	neighborhoodChannels NeighborChannels,
+	quit chan bool){
+	//threadHeartbeat := Heartbeat{id, 0}
+	//threadTable := HeartbeatTable{make([]Heartbeat, 1)}
+	fmt.Print("Running heartbeat for ", id, "\n")
+	//for {
+	//	timeToUpdate := true
+	//	fmt.Print(timeToUpdate)
+	//	for _, neighborhoodChannel := range neighborhoodChannels {
+	//		select {
+	//			case <- quit:
+	//				timeToUpdate = false
+	//				fmt.Print("Quitting Job: ", id, "\n")
+	//				return
+	//			case newMessage := <- neighborhoodChannel:
+	//				updateHeartbeatTable(&threadTable, newMessage)
+	//			default:
+	//				if timeToUpdate {
+	//					fmt.Print("Updating Job: ", id, "\n")
+	//					timeToUpdate = false
+	//					threadHeartbeat.counter += 1
+	//					neighborhoodChannel <- threadHeartbeat
+	//					time.Sleep(TimeBetweenHeartbeats)
+	//					timeToUpdate = true
+	//				}
+	//			}
+	//	}
+	//}
 }
 
-type ChannelNeighborhood = map[int][] chan Heartbeat
-
-type NeighborhoodAssignments = map[int] []int
-
-func runHeartBeatThread(id string, neighborsChannels [] chan Heartbeat){
-	threadHeartbeat := Heartbeat{id, 0}
-	for {
-		time.Sleep(TimeBetweenHeartbeats)
-		threadHeartbeat.counter += 1
-		for _, neighborChannel := range neighborsChannels {
-			neighborChannel <- threadHeartbeat
+func updateHeartbeatTable(table * HeartbeatTable, update Heartbeat) {
+	for _, entry := range table.heartbeats {
+		if update.nodeId == entry.nodeId {
+			if update.counter > entry.counter {
+				entry.counter = update.counter
+			} else if update.counter == entry.counter {
+				//TODO: Mark in danger
+			} else {
+				//TODO: Mark dead
+			}
 		}
 	}
 }
 
-func createNeighborhood (neighborhoodSize int) ChannelNeighborhood {
+func createNeighborhood (neighborhoodSize int) NodeChannels {
 
-	neighborhood := make(ChannelNeighborhood)
+	neighborhood := make(NodeChannels, neighborhoodSize)
 	assignments := createRandomNeighborhoodAssignments(neighborhoodSize)
 
 	for sourceId, sourceAssignments := range assignments {
@@ -52,37 +85,40 @@ func createNeighborhood (neighborhoodSize int) ChannelNeighborhood {
 	return neighborhood
 }
 
+
 func createRandomNeighborhoodAssignments(neighborhoodSize int) NeighborhoodAssignments {
 	relationships := make(NeighborhoodAssignments)
 	for nodeIndex :=0; nodeIndex < neighborhoodSize; nodeIndex++ {
-		numberOfNeighbors := rand.Intn(MaxNumberOfNeighbors)
+		nodeId := generateNodeId(nodeIndex)
+		relationships[nodeId] = []string{}
+		numberOfNeighbors := rand.Intn(MaxNumberOfNeighbors) + 1 //Intn gives index
 
 		for neighborIndex := 0; neighborIndex < numberOfNeighbors; neighborIndex++{
-			assignedNeighbor := rand.Intn(neighborhoodSize)
-			if !doesRelationshipExist(assignedNeighbor, nodeIndex, relationships) {
-				continue
+			assignedNeighbor := generateNodeId(rand.Intn(neighborhoodSize))
+			if isNewRelationship(assignedNeighbor, nodeId, relationships) {
+				relationships[nodeId] = append(relationships[nodeId], assignedNeighbor)
 			}
-			relationships[nodeIndex] = append(relationships[nodeIndex], assignedNeighbor)
 		}
 	}
 	return relationships
 }
 
-func doesRelationshipExist(sourceIndex int, targetIndex int, heartbeatMap NeighborhoodAssignments) bool{
-	if _, ok := heartbeatMap[sourceIndex]; ok {
-		for relatedId := range heartbeatMap[sourceIndex] {
-			if relatedId == targetIndex {
-				return true
-			}
+func generateNodeId(nodeIndex int) string{
+	return strconv.Itoa(nodeIndex)
+}
+
+
+func isNewRelationship(sourceId string, targetId string, heartbeatMap NeighborhoodAssignments) bool{
+	for _, sourceNeighborId := range heartbeatMap[sourceId] {
+		if sourceNeighborId == targetId {
+			return false
 		}
 	}
 
-	if _, ok := heartbeatMap[targetIndex]; ok {
-		for relatedId := range heartbeatMap[targetIndex] {
-			if relatedId == sourceIndex {
-				return true
-			}
+	for _, targetNeighborId := range heartbeatMap[targetId] {
+		if targetNeighborId == sourceId {
+			return false
 		}
 	}
-	return false
+	return true
 }

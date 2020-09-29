@@ -5,10 +5,9 @@ import (
 	"sync"
 )
 import "os"
-import "sort"
 
 const OutputFileName = "mr-out-0"
-const NumberOfMapTasks = 100 // referred to a M in the paper
+const NumberOfMapTasks = 5 // referred to a M in the paper
 
 func main() {
 	if len(os.Args) < 2 {
@@ -23,43 +22,36 @@ func main() {
 	chunks := splitStringIntoChunks(allContent, NumberOfMapTasks)
 
 	//Step 2. Start map workers
-	//mapResponseChannels := createInitializedChannelList(NumberOfMapTasks)
-	mapChannel := make(chan []KeyValue)
+	//mapResponseChannels :=
+	mapChannels := createInitializedChannelList(NumberOfMapTasks)
 	wg := new(sync.WaitGroup)
 	neighborsChannels := createNeighborhood(NumberOfMapTasks)
-	fmt.Print("DOne with neighborhoods")
 	for chunkId, chunk := range chunks {
 		wg.Add(1)
-		go mapJob(chunkId, chunk, mapFunction, mapChannel, wg, neighborsChannels[chunkId])
+		go mapJob(chunkId, chunk, mapFunction, mapChannels[chunkId], wg, neighborsChannels[generateNodeId(chunkId)])
 	}
-
-	go func(wg *sync.WaitGroup, mapChannel chan []KeyValue) {
-		wg.Wait()
-		close(mapChannel)
-	}(wg, mapChannel)
-
-	//Step 3. Buffer intermediate pairs into memory
-	intermediateKeyValuePairs := []KeyValue{}
-	
-	for i := range mapChannel {
-		for j := 0; j < len(i); j++ {
-			intermediateKeyValuePairs = append(intermediateKeyValuePairs, i[j])
-		}
-	}
-
-	// for _, currentChannel := range mapResponseChannels {
-	// 	currentChannelKeyValuePairs := <- currentChannel
-	// 	intermediateKeyValuePairs = append(intermediateKeyValuePairs, currentChannelKeyValuePairs...)
-	// }
-
-	//Step 4. Create input chunks for reduce workers
-	//TODO: Create R chunks, one for each reduce task
-	sort.Sort(ByKey(intermediateKeyValuePairs))
-
-	//Step 5. Reduce each chunk and aggregate output
-	//TODO: Create many reduce tasks
-	reduceChannel := make(chan string)
-	reduceIntermediateKeyValuePairs(intermediateKeyValuePairs, reduceJob, OutputFileName, reduceChannel, wg)
+	print("Start WAIT\n")
+	wg.Wait()
+	print("BOBABOOSH")
+	////close(mapChannel)
+	//
+	//
+	////Step 3. Buffer intermediate pairs into memory
+	//intermediateKeyValuePairs := []KeyValue{}
+	//for i := range mapChannel {
+	//	for j := 0; j < len(i); j++ {
+	//		intermediateKeyValuePairs = append(intermediateKeyValuePairs, i[j])
+	//	}
+	//}
+	//
+	////Step 4. Create input chunks for reduce workers
+	////TODO: Create R chunks, one for each reduce task
+	//sort.Sort(ByKey(intermediateKeyValuePairs))
+	//
+	////Step 5. Reduce each chunk and aggregate output
+	////TODO: Create many reduce tasks
+	//reduceChannel := make(chan string)
+	//reduceIntermediateKeyValuePairs(intermediateKeyValuePairs, reduceJob, OutputFileName, reduceChannel, wg)
 }
 
 

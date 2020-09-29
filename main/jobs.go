@@ -1,12 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"strconv"
 	"sync"
-	"time"
 )
-
-const TimeBetweenHeartbeats = 2 * time.Second
 
 func mapJob(
 	jobId int,
@@ -14,30 +12,25 @@ func mapJob(
 	mapFunction func (contents string) []KeyValue,
 	responseChannel chan []KeyValue,
 	wg *sync.WaitGroup,
-	neighborsChannels [] chan Heartbeat) {
+	neighborsChannel NeighborChannels) {
 		defer wg.Done()
 		//TODO: Implement Heartbeat protocol lol
 		var intermediateKeyValuePairs []KeyValue
-		var workTask sync.WaitGroup
-		workTask.Add(1)
-		go func () {
-			intermediateKeyValuePairs = mapFunction(chunk) // TODO: Actually give it the file name
-		}()
-		quiteHeartbeat := make(chan bool)
-		go func () {
-			// listen for change in channel
-			for {
-				select {
-				case <-quiteHeartbeat:
-					return
-				default:
-					runHeartBeatThread(string(jobId), neighborsChannels )
-				}
-			}
-		}()
-		workTask.Wait()
-		quiteHeartbeat <- true
+		//var workTask sync.WaitGroup
+		//workTask.Add(1)
+		//go func () {
+		//	intermediateKeyValuePairs = mapFunction(chunk) // TODO: Actually give it the file name
+		//	workTask.Done()
+		//}()
+		//quitHeartbeat := make(chan bool)
+		//go runHeartBeatThread(generateNodeId(jobId), neighborsChannel, quitHeartbeat)
+		intermediateKeyValuePairs = mapFunction(chunk)
+		//workTask.Wait() // job has completed
+		fmt.Print("Job finished: ", jobId, "\n")
+		//quitHeartbeat <- true
+		fmt.Print("closing quite heartbeat for Job: ", jobId, "\n")
 		responseChannel <- intermediateKeyValuePairs
+		fmt.Print("Job ", jobId, " done!\n")
 }
 
 
