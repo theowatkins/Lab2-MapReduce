@@ -8,7 +8,7 @@ import (
 import "os"
 
 const OutputFileName = "mr-out-0"
-const NumberOfMapTasks = 5 // referred to a M in the paper
+const NumberOfMapTasks = 2 // referred to a M in the paper
 
 func main() {
 	if len(os.Args) < 2 {
@@ -39,6 +39,21 @@ func main() {
 		}()
 	}
 	wg.Wait()
+
+	channelMap := make(map[chan Heartbeat]int)
+
+	fmt.Print("close channels...")
+	for _, channelGroup := range neighborsChannels {
+		for _, channel := range channelGroup {
+			if _, ok := channelMap[channel]; ok {
+				//do nothing
+			} else {
+				channelMap[channel] = 1
+				close(channel)
+			}
+		}
+	}
+	fmt.Print("CLosing neighborhood channels")
 	close(mapChannel)
 
 	//Step 4. Create input chunks for reduce workers
@@ -49,6 +64,7 @@ func main() {
 	//TODO: Create many reduce tasks
 	reduceChannel := make(chan string)
 	reduceIntermediateKeyValuePairs(intermediateKeyValuePairs, reduceJob, OutputFileName, reduceChannel, &wg)
+	fmt.Print("Done!")
 }
 
 

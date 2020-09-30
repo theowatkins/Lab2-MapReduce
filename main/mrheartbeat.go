@@ -27,48 +27,94 @@ type NeighborhoodAssignments = map[string] []string
 func runHeartBeatThread(
 	id string,
 	neighborhoodChannels NeighborChannels,
-	quit chan bool,
-	wg * sync.WaitGroup) {
-	fmt.Print("Starting new heart beat thread!")
-	threadHeartbeat := Heartbeat{id, 0}
-	threadTable := HeartbeatTable{make([]Heartbeat, 1)}
-	isRunning := true
+	quitChannel chan bool,
+	parentWg * sync.WaitGroup) {
+	defer parentWg.Done()
 
-	wg.Add(2)
+	wg := new(sync.WaitGroup)
+	threadHeartbeat := Heartbeat{id, 0}
+	aggregateChannel := make(chan Heartbeat)
+	isAlive := true
+
 	//listener
-	go func() {
-		for _, neighborhoodChannel := range neighborhoodChannels {
+	wg.Add(1)
+	go func(){
+		for isAlive {
+			fmt.Print("is alive")
+			for _, neighborhoodChannel := range neighborhoodChannels {
+				neighborhoodChannel := neighborhoodChannel
+				select {
+					case _, ok := <- neighborhoodChannel :
+						if ok {
+							//aggregateChannel <- newValue
+						}
+					default: break
+
+				}
+			}
+			time.Sleep(time.Second)
+		}
+		fmt.Print("heart beat listener exiting....")
+		wg.Done()
+	}()
+
+	wg.Add(1)
+	go func(){
+		for isAlive {
+			time.Sleep(time.Second)
+			processNode(&threadHeartbeat,
+				&neighborhoodChannels[0],
+				&neighborhoodChannels,
+				&aggregateChannel)
+		}
+		wg.Done()
+	}()
+
+	wg.Add(1)
+	go func(){
+		for isAlive {
 			select {
-				case <-quit:
-					fmt.Print("Quitting")
-					isRunning = false
-					wg.Done()
-					return
-				case newMessage := <-neighborhoodChannel:
-					updateHeartbeatTable(&threadTable, newMessage)
-				default:
+				case heartbeatUpdate := <- aggregateChannel:
+					fmt.Print("Job ", id, " received update: ", heartbeatUpdate, "\n")
 			}
 		}
+		wg.Done()
 	}()
-	go func() {
-		for {
-			timeToUpdate := true
-			if !isRunning {
+
+	//quit handler
+	wg.Add(1)
+	go func(){
+		select {
+			case <- quitChannel:
+				isAlive = false
+				fmt.Print("Job", id, " received exit signal.\n")
 				wg.Done()
-				return
-			}
-			if timeToUpdate {
-				timeToUpdate = false
-				threadHeartbeat.counter += 1
-				randomNeighborIndex := rand.Intn(len(neighborhoodChannels))
-				neighborhoodChannels[randomNeighborIndex] <- threadHeartbeat
-				time.Sleep(TimeBetweenHeartbeats)
-				timeToUpdate = true
-			}
 		}
 	}()
+
 	wg.Wait()
 }
+
+func processNode(
+	heartbeat * Heartbeat,
+	sendChannelRef * chan Heartbeat,
+	neighborhoodChannels * NeighborChannels,
+	aggregateChannel * chan Heartbeat){
+
+	wg := new(sync.WaitGroup)
+	wg.Add(1)
+
+	//update and send heartbeat
+	go func(){
+
+	}()
+
+	wg.Add(1)
+
+	wg.Wait()
+	fmt.Print("DONE\nDONE\n")
+}
+
 
 func updateHeartbeatTable(table * HeartbeatTable, update Heartbeat) {
 	for _, entry := range table.heartbeats {
