@@ -17,10 +17,6 @@ import "log"
 import "io/ioutil"
 import "sort"
 
-
-
-
-
 func mainSequential() { // renamed bc conflict with main in distributed version
 	if len(os.Args) < 2 {
 		fmt.Fprintf(os.Stderr, "Usage: mrsequential xxx.so inputfiles...\n")
@@ -31,8 +27,8 @@ func mainSequential() { // renamed bc conflict with main in distributed version
 
 	//
 	// read each input file,
-	// pass it to distributedMap,
-	// accumulate the intermediate distributedMap output.
+	// pass it to Map,
+	// accumulate the intermediate Map output.
 	//
 	intermediate := []KeyValue{}
 	for _, filename := range os.Args[1:] {
@@ -115,4 +111,3 @@ func SequentialReduce(key string, values []string) string {
 	// return the number of occurrences of this word.
 	return strconv.Itoa(len(values))
 }
-

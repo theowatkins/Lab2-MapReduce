@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strconv"
 	"strings"
 	"unicode"
 )
@@ -10,7 +11,10 @@ import (
  * are not currently supported on windows.
  */
 
-func distributedMap(contents string) []KeyValue {
+type MapFunction = func(string) []KeyValue
+type ReduceFunction = func(string, []string) string
+
+func Map(contents string) []KeyValue {
 
 	// function to detect word separators.
 	ff := func(r rune) bool { return !unicode.IsLetter(r) }
@@ -26,4 +30,6 @@ func distributedMap(contents string) []KeyValue {
 	return kva
 }
 
-
+func Reduce(key string, values []string) string {
+	return strconv.Itoa(len(values))
+}

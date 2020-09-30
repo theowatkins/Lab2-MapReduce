@@ -24,24 +24,19 @@ type HeartbeatChannel = chan Heartbeat
 type HeartbeatChannels = []HeartbeatChannel
 type NeighborAssignments = map[string][]string
 
-type WorkUnit struct {
-	job     func()
-	cleanup func()
-}
-
 func runJobsWithHeartbeat(workUnits []WorkUnit) {
 	numberOfJobs := len(workUnits)
 	neighborsChannels := createNeighborhood(numberOfJobs)
-	var wg sync.WaitGroup
+	wg := new(sync.WaitGroup)
 
 	for workIndex, work := range workUnits {
 		wg.Add(1)
+		workIndex := workIndex
 		go func() {
 			performWorkWithHeartbeat(
 				workIndex,
 				neighborsChannels[generateNodeId(workIndex)],
-				work.job,
-				work.cleanup)
+				work.work)
 			wg.Done()
 		}()
 	}
@@ -61,27 +56,35 @@ func runJobsWithHeartbeat(workUnits []WorkUnit) {
 	}
 }
 
+/*
+ * Assumes the job you are accomplishing has two tasks:
+ * 1. Do some operation and writing to a channel
+ * 2. Listen to the output of that channel and doing something with it.
+ */
 func performWorkWithHeartbeat(
 	jobId int,
 	neighborsChannel HeartbeatChannels,
-	work func(),
-	cleanup func()) {
+	work func()) {
+	workTask := new(sync.WaitGroup)
+	quitHeartbeatChannel := make(chan bool)
 
-	var workTask sync.WaitGroup
-	//Begin heartbeat
-	quitChannel := make(chan bool)
-	go runHeartBeatThread(generateNodeId(jobId), neighborsChannel, quitChannel)
+	//1. Begin heartbeat
+	workTask.Add(1)
+	go func() {
+		runHeartBeatThread(generateNodeId(jobId), neighborsChannel, quitHeartbeatChannel)
+		close(quitHeartbeatChannel)
+		workTask.Done()
+	}()
 
-	//Do Work
+	//2. Do work
 	workTask.Add(1)
 	go func() {
 		work()
+		quitHeartbeatChannel <- true
 		workTask.Done()
-		quitChannel <- true //Stop heartbeat
 	}()
 
 	workTask.Wait() // job and heart beat stopped
-	cleanup()
 }
 
 func runHeartBeatThread(
@@ -111,6 +114,7 @@ func runHeartBeatThread(
 	/*
 	 * Aggregates communications channels into single channel
 	 */
+	//wg.Add(1) uncommentting these lines causes bug...
 	go func() {
 		for isAlive && len(neighborhoodChannels) > 0 {
 			select {
@@ -121,6 +125,7 @@ func runHeartBeatThread(
 				aggregateChannel <- newValue
 			}
 		}
+		//wg.Done()
 	}()
 
 	/*
@@ -146,8 +151,8 @@ func runHeartBeatThread(
 		select {
 		case <-quitChannel:
 			isAlive = false
-			wg.Done()
 		}
+		wg.Done()
 	}()
 
 	wg.Wait()
