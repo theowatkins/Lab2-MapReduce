@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -26,30 +27,47 @@ type NeighborhoodAssignments = map[string] []string
 func runHeartBeatThread(
 	id string,
 	neighborhoodChannels NeighborChannels,
-	quit chan bool){
-	fmt.Print("RUNNING INGING")
+	quit chan bool,
+	wg * sync.WaitGroup) {
+	fmt.Print("Starting new heart beat thread!")
 	threadHeartbeat := Heartbeat{id, 0}
 	threadTable := HeartbeatTable{make([]Heartbeat, 1)}
-	for {
-		timeToUpdate := true
+	isRunning := true
+
+	wg.Add(2)
+	//listener
+	go func() {
 		for _, neighborhoodChannel := range neighborhoodChannels {
 			select {
-				case <- quit:
-					close(quit)
+				case <-quit:
+					fmt.Print("Quitting")
+					isRunning = false
+					wg.Done()
 					return
-				case newMessage := <- neighborhoodChannel:
+				case newMessage := <-neighborhoodChannel:
 					updateHeartbeatTable(&threadTable, newMessage)
 				default:
-					if timeToUpdate {
-						timeToUpdate = false
-						threadHeartbeat.counter += 1
-						neighborhoodChannel <- threadHeartbeat
-						time.Sleep(TimeBetweenHeartbeats)
-						timeToUpdate = true
-					}
-				}
+			}
 		}
-	}
+	}()
+	go func() {
+		for {
+			timeToUpdate := true
+			if !isRunning {
+				wg.Done()
+				return
+			}
+			if timeToUpdate {
+				timeToUpdate = false
+				threadHeartbeat.counter += 1
+				randomNeighborIndex := rand.Intn(len(neighborhoodChannels))
+				neighborhoodChannels[randomNeighborIndex] <- threadHeartbeat
+				time.Sleep(TimeBetweenHeartbeats)
+				timeToUpdate = true
+			}
+		}
+	}()
+	wg.Wait()
 }
 
 func updateHeartbeatTable(table * HeartbeatTable, update Heartbeat) {

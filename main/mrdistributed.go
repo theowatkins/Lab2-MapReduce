@@ -26,36 +26,29 @@ func main() {
 	mapChannel := make(chan []KeyValue)
 	var wg sync.WaitGroup
 	neighborsChannels := createNeighborhood(NumberOfMapTasks)
+	intermediateKeyValuePairs := []KeyValue{}
 	for chunkId, chunk := range chunks {
-		wg.Add(1)
+		wg.Add(2)
 		go mapJob(chunkId, chunk, mapFunction, mapChannel, &wg, neighborsChannels[generateNodeId(chunkId)])
-		fmt.Print("added job task\n")
-	}
-	go func () {
-		wg.Wait()
-		fmt.Print("BOBABOOSH")
-		close(mapChannel)
-
-		//Step 3. Buffer intermediate pairs into memory
-		intermediateKeyValuePairs := []KeyValue{}
-		for i := range mapChannel {
-			for j := 0; j < len(i); j++ {
-				intermediateKeyValuePairs = append(intermediateKeyValuePairs, i[j])
+		go func () {
+			jobResult := <- mapChannel
+			for _, keyValuePair := range jobResult {
+				intermediateKeyValuePairs = append(intermediateKeyValuePairs, keyValuePair)
 			}
-		}
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+	close(mapChannel)
 
-		//Step 4. Create input chunks for reduce workers
-		//TODO: Create R chunks, one for each reduce task
-		sort.Sort(ByKey(intermediateKeyValuePairs))
+	//Step 4. Create input chunks for reduce workers
+	//TODO: Create R chunks, one for each reduce task
+	sort.Sort(ByKey(intermediateKeyValuePairs))
 
-		//Step 5. Reduce each chunk and aggregate output
-		//TODO: Create many reduce tasks
-		reduceChannel := make(chan string)
-		reduceIntermediateKeyValuePairs(intermediateKeyValuePairs, reduceJob, OutputFileName, reduceChannel, &wg)
-		fmt.Print("HELO\n")
-	}()
-
-	fmt.Print("hello")
+	//Step 5. Reduce each chunk and aggregate output
+	//TODO: Create many reduce tasks
+	reduceChannel := make(chan string)
+	reduceIntermediateKeyValuePairs(intermediateKeyValuePairs, reduceJob, OutputFileName, reduceChannel, &wg)
 }
 
 
