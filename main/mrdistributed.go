@@ -7,7 +7,7 @@ import (
 import "os"
 
 const OutputFileName = "mr-out-0"
-const NumberOfMapTasks = 2 // referred to a M in the paper
+const NumberOfMapTasks = 1 // referred to a M in the paper
 
 func main() {
 	if len(os.Args) < 2 {
@@ -24,7 +24,7 @@ func main() {
 
 	intermediateKeyValuePairs := runMapWithHeartbeat(chunks, mapFunction)
 	sort.Sort(ByKey(intermediateKeyValuePairs))
-	runReduceWithHeartbeat(intermediateKeyValuePairs, reduceFunction, OutputFileName)
+	runReduceWithHeartbeat(&intermediateKeyValuePairs, reduceFunction, OutputFileName)
 }
 
 /*
@@ -54,27 +54,30 @@ func runMapWithHeartbeat(chunks []string, mapFunction MapFunction) []KeyValue {
  * runs these operations while communication via heartbeat
  */
 func runReduceWithHeartbeat(
-	intermediatePairs []KeyValue,
+	intermediatePairsRef *[]KeyValue,
 	reduceFunction ReduceFunction,
 	outputFilePath string) {
 
 	outputFile, _ := os.Create(outputFilePath)
-	reduceChannel := make(chan string)
 
 	// 2. Create reduce jobs
 	var workUnits = []WorkUnit{}
-	regions := getRegionOfUniqueKeys(intermediatePairs)
+	intermediatePairs := *intermediatePairsRef
+	regions := getRegionOfUniqueKeys(intermediatePairsRef)
+
 	for _, region := range regions {
 		key := intermediatePairs[region.start].Key
+		keys := []string{}
 		values := []string{}
 		for intermediatePairIndex := region.start; intermediatePairIndex < region.end; intermediatePairIndex++ {
 			values = append(values, intermediatePairs[intermediatePairIndex].Value)
+			keys = append(keys, intermediatePairs[intermediatePairIndex].Key)
 		}
-		workUnit := createReduceWorkUnit(key, values, reduceFunction, reduceChannel, outputFile)
+		workUnit := createReduceWorkUnit(key, values, reduceFunction, outputFile)
 		workUnits = append(workUnits, workUnit)
+
 	}
 
 	// 3. Run jobs with heartbeat
 	runJobsWithHeartbeat(workUnits)
-	close(reduceChannel)
 }

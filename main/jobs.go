@@ -55,7 +55,6 @@ func createReduceWorkUnit(
 	chunkKey string,
 	values []string,
 	reduceFunction ReduceFunction,
-	reduceChannel chan string,
 	outputFile *os.File) WorkUnit {
 
 	var workUnit = WorkUnit{}
@@ -72,16 +71,18 @@ func createReduceWorkUnit(
  * Utilities
  */
 
-func getRegionOfUniqueKeys(intermediatePairs []KeyValue) []KeyValueRegion {
+func getRegionOfUniqueKeys(intermediatePairsRef *[]KeyValue) []KeyValueRegion {
+	intermediatePairs := * intermediatePairsRef
 	keyStartIndex := 0
 	var indices []KeyValueRegion
 	for keyStartIndex < len(intermediatePairs) {
-		lastKeyIndex := keyStartIndex + 1
-		for lastKeyIndex < len(intermediatePairs) && intermediatePairs[lastKeyIndex].Key == intermediatePairs[keyStartIndex].Key {
-			lastKeyIndex++
+		nextKeyIndex := keyStartIndex + 1
+		for nextKeyIndex < len(intermediatePairs) &&
+			intermediatePairs[nextKeyIndex].Key == intermediatePairs[keyStartIndex].Key {
+			nextKeyIndex++
 		}
-		indices = append(indices, KeyValueRegion{keyStartIndex, lastKeyIndex})
-		keyStartIndex = lastKeyIndex
+		indices = append(indices, KeyValueRegion{keyStartIndex, nextKeyIndex})
+		keyStartIndex = nextKeyIndex
 	}
 	return indices
 }

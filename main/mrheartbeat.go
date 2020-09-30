@@ -32,6 +32,7 @@ func runJobsWithHeartbeat(workUnits []WorkUnit) {
 	for workIndex, work := range workUnits {
 		wg.Add(1)
 		workIndex := workIndex
+		work := work
 		go func() {
 			performWorkWithHeartbeat(
 				workIndex,
