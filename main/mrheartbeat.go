@@ -20,68 +20,135 @@ type HeartbeatTable struct {
 	heartbeats []Heartbeat
 }
 
-type NodeChannels = map[string][] chan Heartbeat
-type NeighborChannels = [] chan Heartbeat
-type NeighborhoodAssignments = map[string] []string
+type HeartbeatChannelMap = map[string][] chan Heartbeat
+type HeartbeatChannel = chan Heartbeat
+type HeartbeatChannels = [] HeartbeatChannel
+type NeighborAssignments = map[string] []string
+
+type WorkUnit struct {
+	job func()
+	cleanup func()
+}
+
+func runJobsWithHeartbeat (
+	workUnits []WorkUnit,) {
+	numberOfJobs := len(workUnits)
+	neighborsChannels := createNeighborhood(numberOfJobs)
+	var wg sync.WaitGroup
+
+	for workIndex, work := range workUnits {
+		wg.Add(1)
+		go func(){
+			performWorkWithHeartbeat(
+				workIndex,
+				neighborsChannels[generateNodeId(workIndex)],
+				work.job,
+				work.cleanup)
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+
+	channelMap := make(map[chan Heartbeat]int)
+
+	fmt.Print("close channels...\n")
+	for _, channelGroup := range neighborsChannels {
+		for _, channel := range channelGroup {
+			if _, ok := channelMap[channel]; ok {
+				//do nothing
+			} else {
+				channelMap[channel] = 1
+				close(channel)
+			}
+		}
+	}
+}
+
+func performWorkWithHeartbeat (
+	jobId int,
+	neighborsChannel HeartbeatChannels,
+	work func (),
+	cleanup func()){
+
+	var workTask sync.WaitGroup
+	//Begin heartbeat
+	quitChannel := make(chan bool)
+	go runHeartBeatThread(generateNodeId(jobId), neighborsChannel, quitChannel)
+
+	//Do Work
+	workTask.Add(1)
+	go func () {
+		work()
+		workTask.Done()
+		quitChannel <- true	//Stop heartbeat
+	}()
+
+	workTask.Wait() // job and heart beat stopped
+	cleanup()
+}
 
 func runHeartBeatThread(
 	id string,
-	neighborhoodChannels NeighborChannels,
-	quitChannel chan bool,
-	parentWg * sync.WaitGroup) {
-	defer parentWg.Done()
-
+	neighborhoodChannels HeartbeatChannels,
+	quitChannel chan bool) {
 	wg := new(sync.WaitGroup)
 	threadHeartbeat := Heartbeat{id, 0}
 	aggregateChannel := make(chan Heartbeat)
 	isAlive := true
 
-	//listener
+	/*
+	 * Main heart beat thread
+	 */
 	wg.Add(1)
 	go func(){
 		for isAlive {
-			fmt.Print("is alive")
-			for _, neighborhoodChannel := range neighborhoodChannels {
-				neighborhoodChannel := neighborhoodChannel
-				select {
-					case _, ok := <- neighborhoodChannel :
-						if ok {
-							//aggregateChannel <- newValue
-						}
-					default: break
-
-				}
+			fmt.Print("Job ", id, " is going to sleep.\n")
+			time.Sleep(TimeBetweenHeartbeats)
+			fmt.Print("Job ", id, " is updating state.\n")
+			if isAlive { //function could have exited, do not touch state
+				heartbeatTick(&threadHeartbeat, &neighborhoodChannels)
 			}
-			time.Sleep(time.Second)
 		}
-		fmt.Print("heart beat listener exiting....")
 		wg.Done()
+		fmt.Print("Job ", id, " MainThread is exiting.\n")
 	}()
 
-	wg.Add(1)
+	/*
+	 * Aggregates communications channels into single channel
+	 */
 	go func(){
 		for isAlive {
-			time.Sleep(time.Second)
-			processNode(&threadHeartbeat,
-				&neighborhoodChannels[0],
-				&neighborhoodChannels,
-				&aggregateChannel)
+			select {
+				case newValue, ok := <- neighborhoodChannels[0]:
+					if !ok{
+						return
+					}
+					fmt.Print("receiving new value...\n")
+					aggregateChannel <- newValue
+			}
 		}
-		wg.Done()
+		fmt.Print("Job ", id, " Channel Aggregation is exiting.\n")
 	}()
 
+	/*
+	 * On Update listener
+	 */
 	wg.Add(1)
 	go func(){
 		for isAlive {
 			select {
 				case heartbeatUpdate := <- aggregateChannel:
 					fmt.Print("Job ", id, " received update: ", heartbeatUpdate, "\n")
+				default:
 			}
 		}
+		fmt.Print("Job ", id, " OnUpdateListener is exiting.\n")
 		wg.Done()
 	}()
 
-	//quit handler
+	/*
+	 * Quit handler
+	 */
 	wg.Add(1)
 	go func(){
 		select {
@@ -95,24 +162,12 @@ func runHeartBeatThread(
 	wg.Wait()
 }
 
-func processNode(
+func heartbeatTick(
 	heartbeat * Heartbeat,
-	sendChannelRef * chan Heartbeat,
-	neighborhoodChannels * NeighborChannels,
-	aggregateChannel * chan Heartbeat){
-
-	wg := new(sync.WaitGroup)
-	wg.Add(1)
-
-	//update and send heartbeat
-	go func(){
-
-	}()
-
-	wg.Add(1)
-
-	wg.Wait()
-	fmt.Print("DONE\nDONE\n")
+	neighborhoodChannels *HeartbeatChannels){
+	heartbeat.counter += 1
+	(*neighborhoodChannels)[0] <- *heartbeat
+	fmt.Print("Processing job: ", heartbeat.nodeId, "\n")
 }
 
 
@@ -130,9 +185,9 @@ func updateHeartbeatTable(table * HeartbeatTable, update Heartbeat) {
 	}
 }
 
-func createNeighborhood (neighborhoodSize int) NodeChannels {
+func createNeighborhood (neighborhoodSize int) HeartbeatChannelMap {
 
-	neighborhood := make(NodeChannels, neighborhoodSize)
+	neighborhood := make(HeartbeatChannelMap, neighborhoodSize)
 	assignments := createRandomNeighborhoodAssignments(neighborhoodSize)
 
 	for sourceId, sourceAssignments := range assignments {
@@ -147,8 +202,8 @@ func createNeighborhood (neighborhoodSize int) NodeChannels {
 }
 
 
-func createRandomNeighborhoodAssignments(neighborhoodSize int) NeighborhoodAssignments {
-	relationships := make(NeighborhoodAssignments)
+func createRandomNeighborhoodAssignments(neighborhoodSize int) NeighborAssignments {
+	relationships := make(NeighborAssignments)
 	for nodeIndex :=0; nodeIndex < neighborhoodSize; nodeIndex++ {
 		nodeId := generateNodeId(nodeIndex)
 		relationships[nodeId] = []string{}
@@ -169,7 +224,7 @@ func generateNodeId(nodeIndex int) string{
 }
 
 
-func isNewRelationship(sourceId string, targetId string, heartbeatMap NeighborhoodAssignments) bool{
+func isNewRelationship(sourceId string, targetId string, heartbeatMap NeighborAssignments) bool{
 	for _, sourceNeighborId := range heartbeatMap[sourceId] {
 		if sourceNeighborId == targetId {
 			return false

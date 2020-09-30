@@ -8,7 +8,7 @@ import (
 import "os"
 
 const OutputFileName = "mr-out-0"
-const NumberOfMapTasks = 2 // referred to a M in the paper
+const NumberOfMapTasks = 10 // referred to a M in the paper
 
 func main() {
 	if len(os.Args) < 2 {
@@ -27,9 +27,39 @@ func main() {
 	var wg sync.WaitGroup
 	neighborsChannels := createNeighborhood(NumberOfMapTasks)
 	intermediateKeyValuePairs := []KeyValue{}
+
+	var workUnits = [NumberOfMapTasks]WorkUnit{}
+	for workUnitIndex :=0 ; workUnitIndex < len(workUnits); workUnitIndex++{
+		chunk := chunks[workUnitIndex]
+		job := func (){
+			wg := new(sync.WaitGroup)
+			wg.Add(1)
+			go func(){
+				mapJob(workUnitIndex, chunk, mapFunction, mapChannel, neighborsChannels[generateNodeId(chunkId)])
+				wg.Done()
+			}()
+			wg.Add(1)
+			go func () {
+				jobResult := <- mapChannel
+				for _, keyValuePair := range jobResult {
+					intermediateKeyValuePairs = append(intermediateKeyValuePairs, keyValuePair)
+				}
+				wg.Done()
+			}()
+			wg.Wait()
+		}
+		cleanup := func () {}
+		workUnits[workUnitIndex] = WorkUnit{job, cleanup}
+	}
+
+
 	for chunkId, chunk := range chunks {
-		wg.Add(2)
-		go mapJob(chunkId, chunk, mapFunction, mapChannel, &wg, neighborsChannels[generateNodeId(chunkId)])
+		wg.Add(1)
+		go func(){
+			mapJob(chunkId, chunk, mapFunction, mapChannel, neighborsChannels[generateNodeId(chunkId)])
+			wg.Done()
+		}()
+		wg.Add(1)
 		go func () {
 			jobResult := <- mapChannel
 			for _, keyValuePair := range jobResult {
@@ -42,7 +72,7 @@ func main() {
 
 	channelMap := make(map[chan Heartbeat]int)
 
-	fmt.Print("close channels...")
+	fmt.Print("close channels...\n")
 	for _, channelGroup := range neighborsChannels {
 		for _, channel := range channelGroup {
 			if _, ok := channelMap[channel]; ok {
@@ -53,7 +83,7 @@ func main() {
 			}
 		}
 	}
-	fmt.Print("CLosing neighborhood channels")
+	fmt.Print("Closing map channels\n")
 	close(mapChannel)
 
 	//Step 4. Create input chunks for reduce workers
