@@ -34,7 +34,7 @@ func reduceJob(
 }
 
 /*
- * UnitOfWork - Lambdas representing the work necessary to parallelize operations
+ * UnitOfWork - Lambdas representing some work that will get parallelized
  */
 func createMapUnitOfWork(
 	chunk string,
@@ -59,6 +59,7 @@ func createReduceWorkUnit(
 
 	var workUnit = WorkUnit{}
 
+	//TODO : Because of the random order of execution of goroutines output is not sorted.
 	workUnit.work = func() {
 		s := reduceJob(chunkKey, values, reduceFunction)
 		fmt.Fprintf(outputFile, s)
@@ -67,11 +68,8 @@ func createReduceWorkUnit(
 	return workUnit
 }
 
-/*
- * Utilities
- */
-
-func getRegionOfUniqueKeys(intermediatePairsRef *[]KeyValue) []KeyValueRegion {
+//Returns a list of regions (start + end indices) marking where each key lies in the given reference.
+func getRegionsForUniqueKeys(intermediatePairsRef *[]KeyValue) []KeyValueRegion {
 	intermediatePairs := * intermediatePairsRef
 	keyStartIndex := 0
 	var indices []KeyValueRegion

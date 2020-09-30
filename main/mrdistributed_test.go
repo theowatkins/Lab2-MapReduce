@@ -17,7 +17,7 @@ func TestGetAggregateContentInFiles(t *testing.T) {
 func TestRegionOfUniqueKeys(t *testing.T) {
 	intermediatePairs := make([]KeyValue, 1)
 	intermediatePairs[0] = KeyValue{"all", "1"}
-	result := getRegionOfUniqueKeys(&intermediatePairs)
+	result := getRegionsForUniqueKeys(&intermediatePairs)
 
 	assertIntegersEqual(1, len(result), t)
 	assertIntegersEqual(0, result[0].start, t)
@@ -28,7 +28,7 @@ func TestRegionOfUniqueKeysMultipleSame(t *testing.T) {
 	intermediatePairs := make([]KeyValue, 2)
 	intermediatePairs[0] = KeyValue{"all", "1"}
 	intermediatePairs[1] = KeyValue{"all", "1"}
-	result := getRegionOfUniqueKeys(&intermediatePairs)
+	result := getRegionsForUniqueKeys(&intermediatePairs)
 
 	assertIntegersEqual(1, len(result), t)
 	assertIntegersEqual(0, result[0].start, t)
@@ -39,7 +39,7 @@ func TestRegionOfUniqueKeysMultipleDifferent(t *testing.T) {
 	intermediatePairs := make([]KeyValue, 2)
 	intermediatePairs[0] = KeyValue{"all", "1"}
 	intermediatePairs[1] = KeyValue{"two", "1"}
-	result := getRegionOfUniqueKeys(&intermediatePairs)
+	result := getRegionsForUniqueKeys(&intermediatePairs)
 
 	assertIntegersEqual(2, len(result), t)
 	assertIntegersEqual(0, result[0].start, t)
@@ -53,7 +53,7 @@ func TestRegionOfUniqueKeysMultipleDifferentAndSame(t *testing.T) {
 	intermediatePairs[0] = KeyValue{"all", "1"}
 	intermediatePairs[1] = KeyValue{"all", "1"}
 	intermediatePairs[2] = KeyValue{"two", "1"}
-	result := getRegionOfUniqueKeys(&intermediatePairs)
+	result := getRegionsForUniqueKeys(&intermediatePairs)
 
 	assertIntegersEqual(2, len(result), t)
 	assertIntegersEqual(0, result[0].start, t)
@@ -73,25 +73,3 @@ func assertStringsEqual(a string, b string, t *testing.T) {
 		t.Errorf("Expected %s but got %s", a, b)
 	}
 }
-
-//func TestHeartBeat(t *testing.T) {
-//	channel := make(HeartbeatChannel)
-//	channels := HeartbeatChannels{channel}
-//
-//	var wg = sync.WaitGroup{}
-//	wg.Add(2)
-//	go performWorkWithHeartbeat(1, channels, func() {
-//		time.Sleep(time.Second * 2)
-//		fmt.Print("Starting job A...\n")
-//	})
-//
-//	go performWorkWithHeartbeat(2, channels, func() {
-//		time.Sleep(time.Second * 2)
-//		fmt.Print("Starting job B...\n")
-//	})
-//
-//	wg.Wait()
-//	fmt.Print("Closing channels")
-//	close(channel)
-//	fmt.Print("Testing done")
-//}

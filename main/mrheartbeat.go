@@ -34,7 +34,7 @@ func runJobsWithHeartbeat(workUnits []WorkUnit) {
 		workIndex := workIndex
 		work := work
 		go func() {
-			performWorkWithHeartbeat(
+			performJobWithHeartbeat(
 				workIndex,
 				neighborsChannels[generateNodeId(workIndex)],
 				work.work)
@@ -62,101 +62,106 @@ func runJobsWithHeartbeat(workUnits []WorkUnit) {
  * 1. Do some operation and writing to a channel
  * 2. Listen to the output of that channel and doing something with it.
  */
-func performWorkWithHeartbeat(
+func performJobWithHeartbeat(
 	jobId int,
 	neighborsChannel HeartbeatChannels,
-	work func()) {
-	workTask := new(sync.WaitGroup)
+	job func()) {
+
+	jobWaitGroup := new(sync.WaitGroup)
 	quitHeartbeatChannel := make(chan bool)
 
 	//1. Begin heartbeat
-	workTask.Add(1)
+	jobWaitGroup.Add(1)
 	go func() {
 		runHeartBeatThread(generateNodeId(jobId), neighborsChannel, quitHeartbeatChannel)
 		close(quitHeartbeatChannel)
-		workTask.Done()
+		jobWaitGroup.Done()
 	}()
 
-	//2. Do work
-	workTask.Add(1)
+	//2. Do job
+	jobWaitGroup.Add(1)
 	go func() {
-		work()
+		job()
 		quitHeartbeatChannel <- true
-		workTask.Done()
+		jobWaitGroup.Done()
 	}()
 
-	workTask.Wait() // job and heart beat stopped
+	jobWaitGroup.Wait() // job and heart beat stopped
 }
 
+const NeighborToSendTo = 0
+
 func runHeartBeatThread(
-	id string,
+	threadId string,
 	neighborhoodChannels HeartbeatChannels,
 	quitChannel chan bool) {
-	wg := new(sync.WaitGroup)
-	threadHeartbeat := Heartbeat{id, 0}
-	aggregateChannel := make(chan Heartbeat)
-	isAlive := true
-	table := HeartbeatTable{[]Heartbeat{}}
+
+	threadWaitGroup := new(sync.WaitGroup)
+	threadHeartbeat := Heartbeat{threadId, 0}
+	theadAggregateChannel := make(chan Heartbeat)
+	theadIsAlive := true
+	threadHeartbeatTable := HeartbeatTable{[]Heartbeat{}}
 
 	/*
-	 * Main heart beat thread
+	 * Heart beat thread - Increments counter and sends to neighbor when
 	 */
-	wg.Add(1)
+	threadWaitGroup.Add(1)
 	go func() {
-		for isAlive {
+		for theadIsAlive {
 			time.Sleep(TimeBetweenHeartbeats)
-			if isAlive { //function could have exited, do not touch state
+			if theadIsAlive { //function could have exited when sleeping, do NOT touch state
 				heartbeatTick(&threadHeartbeat, &neighborhoodChannels)
 			}
 		}
-		wg.Done()
+		threadWaitGroup.Done()
 	}()
 
 	/*
-	 * Aggregates communications channels into single channel
+	 * On Neighbor Update Handler - Aggregates communications channels from neighbors into single channel.
+	 * Note, because we are always sending to the same neighbor some listeners on neighborhood channels will
+	 * never receiver a value. This will leave the threads hanging until the channel closes. This is why
+	 * this handler contains no wait group.
 	 */
-	//wg.Add(1) uncommentting these lines causes bug...
 	go func() {
-		for isAlive && len(neighborhoodChannels) > 0 {
+		for theadIsAlive && len(neighborhoodChannels) > 0 {
 			select {
-			case newValue, ok := <-neighborhoodChannels[0]:
+			case newValue, ok := <-neighborhoodChannels[NeighborToSendTo]:
 				if !ok {
 					return
 				}
-				aggregateChannel <- newValue
+				theadAggregateChannel <- newValue
 			}
 		}
-		//wg.Done()
 	}()
 
 	/*
-	 * On Update listener
+	 * On Update listener - Processes heartbeats sent to node and updates table
 	 */
-	wg.Add(1)
+	threadWaitGroup.Add(1)
 	go func() {
-		for isAlive {
+		for theadIsAlive {
 			select {
-			case heartbeatUpdate := <-aggregateChannel:
-				updateHeartbeatTable(&table, heartbeatUpdate)
+			case heartbeatUpdate := <-theadAggregateChannel:
+				updateHeartbeatTable(&threadHeartbeatTable, heartbeatUpdate)
 			default:
 			}
 		}
-		wg.Done()
+		threadWaitGroup.Done()
 	}()
 
 	/*
-	 * Quit handler
+	 * Quit handler - waits for process to quit and sets flag.
 	 */
-	wg.Add(1)
+	threadWaitGroup.Add(1)
 	go func() {
 		select {
 		case <-quitChannel:
-			isAlive = false
+			theadIsAlive = false
 		}
-		wg.Done()
+		threadWaitGroup.Done()
 	}()
 
-	wg.Wait()
+	threadWaitGroup.Wait()
 }
 
 func heartbeatTick(
@@ -164,7 +169,7 @@ func heartbeatTick(
 	neighborhoodChannels *HeartbeatChannels) {
 	heartbeat.counter += 1
 	if len(*neighborhoodChannels) > 0 {
-		(*neighborhoodChannels)[0] <- *heartbeat
+		(*neighborhoodChannels)[NeighborToSendTo] <- *heartbeat
 	}
 }
 
@@ -182,6 +187,9 @@ func updateHeartbeatTable(table *HeartbeatTable, update Heartbeat) {
 	}
 }
 
+/*
+ * Neighborhood creation
+ */
 func createNeighborhood(neighborhoodSize int) HeartbeatChannelMap {
 
 	neighborhood := make(HeartbeatChannelMap, neighborhoodSize)

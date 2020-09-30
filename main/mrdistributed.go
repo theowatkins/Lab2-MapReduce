@@ -7,7 +7,7 @@ import (
 import "os"
 
 const OutputFileName = "mr-out-0"
-const NumberOfMapTasks = 1 // referred to a M in the paper
+const NumberOfMapTasks = 100 // referred to a M in the paper
 
 func main() {
 	if len(os.Args) < 2 {
@@ -63,7 +63,7 @@ func runReduceWithHeartbeat(
 	// 2. Create reduce jobs
 	var workUnits = []WorkUnit{}
 	intermediatePairs := *intermediatePairsRef
-	regions := getRegionOfUniqueKeys(intermediatePairsRef)
+	regions := getRegionsForUniqueKeys(intermediatePairsRef)
 
 	for _, region := range regions {
 		key := intermediatePairs[region.start].Key
