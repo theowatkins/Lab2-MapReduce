@@ -11,6 +11,7 @@ const TimeBetweenHeartbeats = time.Second
 type Heartbeat struct {
 	nodeId  string
 	counter int64
+	troubleCounter int
 }
 
 type HeartbeatTable struct {
@@ -95,7 +96,7 @@ func runHeartBeatThread(
 	quitChannel chan bool) {
 
 	threadWaitGroup := new(sync.WaitGroup)
-	threadHeartbeat := Heartbeat{threadId, 0}
+	threadHeartbeat := Heartbeat{threadId, 0, 0}
 	theadAggregateChannel := make(chan Heartbeat)
 	theadIsAlive := true
 	threadHeartbeatTable := HeartbeatTable{[]Heartbeat{}}
@@ -140,7 +141,7 @@ func runHeartBeatThread(
 		for theadIsAlive {
 			select {
 			case heartbeatUpdate := <-theadAggregateChannel:
-				updateHeartbeatTable(&threadHeartbeatTable, heartbeatUpdate)
+				updateHeartbeatTable(&threadHeartbeatTable, heartbeatUpdate, quitChannel)
 			default:
 			}
 		}
@@ -175,15 +176,15 @@ func heartbeatTick(
 /* Adds updated heartbeat if does not exist in table, updates otherwise.
  *
  */
-func updateHeartbeatTable(table *HeartbeatTable, update Heartbeat) {
+func updateHeartbeatTable(table *HeartbeatTable, update Heartbeat, quitChannel chan bool) {
 	for _, entry := range table.heartbeats {
 		if update.nodeId == entry.nodeId {
 			if update.counter > entry.counter {
 				entry.counter = update.counter
-			} else if update.counter == entry.counter {
-				//TODO: Mark in danger
+			} else if update.counter == entry.counter && entry.troubleCounter < 3 {
+				entry.troubleCounter++
 			} else {
-				//TODO: Mark dead
+				quitChannel <- true
 			}
 		}
 	}
