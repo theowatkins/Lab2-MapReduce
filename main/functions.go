@@ -11,8 +11,8 @@ import (
  * are not currently supported on windows.
  */
 
-type MapFunction = func(string) []KeyValue
-type ReduceFunction = func(string, []string) string
+type MapFunction func(string) []KeyValue
+type ReduceFunction func(string, []string) string
 
 func Map(contents string) []KeyValue {
 

@@ -5,6 +5,8 @@ import (
 	"strconv"
 )
 
+const numberOfNeighbors = 3
+
 /*
  * This file contains the functions that create the neighborhood for nodes of heartbeat protocol.
  */
@@ -29,7 +31,6 @@ func createRandomNeighborhoodAssignments(neighborhoodSize int) NeighborAssignmen
 	for nodeIndex := 0; nodeIndex < neighborhoodSize; nodeIndex++ {
 		nodeId := generateNodeId(nodeIndex)
 		relationships[nodeId] = []string{}
-		numberOfNeighbors := rand.Intn(MaxNumberOfNeighbors) + 1 //Intn gives index
 
 		for neighborIndex := 0; neighborIndex < numberOfNeighbors; neighborIndex++ {
 			assignedNeighbor := generateNodeId(rand.Intn(neighborhoodSize))

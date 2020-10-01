@@ -18,10 +18,10 @@ type HeartbeatTable struct {
 	heartbeats []Heartbeat
 }
 
-type HeartbeatChannelMap = map[string][]chan Heartbeat
-type HeartbeatChannel = chan Heartbeat
-type HeartbeatChannels = []HeartbeatChannel
-type NeighborAssignments = map[string][]string
+type HeartbeatChannel chan Heartbeat
+type HeartbeatChannels []HeartbeatChannel
+type HeartbeatChannelMap map[string]HeartbeatChannels
+type NeighborAssignments map[string][]string
 
 func runJobsWithHeartbeat(workUnits []WorkUnit) {
 	numberOfJobs := len(workUnits)
