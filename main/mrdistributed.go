@@ -8,6 +8,7 @@ import "os"
 
 const OutputFileName = "mr-out-0"
 const NumberOfMapTasks = 100 // referred to a M in the paper
+const SplitChunkOn = " "
 
 func main() {
 	if len(os.Args) < 2 {
@@ -20,7 +21,7 @@ func main() {
 
 	//Step 1. Read input files and pass content into map
 	allContent := aggregateFileContents(os.Args[1:])
-	chunks := splitStringIntoChunks(allContent, NumberOfMapTasks)
+	chunks := splitStringIntoChunks(allContent, NumberOfMapTasks, SplitChunkOn)
 	intermediateKeyValuePairs := runMapWithHeartbeat(chunks, mapFunction)
 	sort.Sort(ByKey(intermediateKeyValuePairs))
 	runReduceWithHeartbeat(&intermediateKeyValuePairs, reduceFunction, OutputFileName)

@@ -74,14 +74,41 @@ func TestRunMapWithHeartbeat(t *testing.T) {
 	assertStringsEqual("1", keyValueResult[1].Value, t)
 }
 
+func TestSplitStringIntoChunks(t *testing.T) {
+	chunk := "hello world this is another test this is another test"
+	chunks := splitStringIntoChunks(chunk, 100, " ")
+	assertIntegersEqual(10, len(chunks), t)
+	assertStringsEqual("hello", chunks[0], t)
+	assertStringsEqual("world", chunks[1], t)
+	assertStringsEqual("this", chunks[2], t)
+	assertStringsEqual("is", chunks[3], t)
+	assertStringsEqual("another", chunks[4], t)
+	assertStringsEqual("test", chunks[5], t)
+	assertStringsEqual("this", chunks[6], t)
+	assertStringsEqual("is", chunks[7], t)
+	assertStringsEqual("another", chunks[8], t)
+	assertStringsEqual("test", chunks[9], t)
+}
+
+func TestSplitStringIntoChunksUnevenChunks(t *testing.T) {
+	chunk := "hello world this is another test this is another test"
+	numChunksRequested := 3
+	chunks := splitStringIntoChunks(chunk, numChunksRequested, " ")
+	assertIntegersEqual(numChunksRequested, len(chunks), t)
+	assertStringsEqual("hello world this", chunks[0], t)
+	assertStringsEqual("is another test", chunks[1], t)
+	assertStringsEqual("this is another test", chunks[2], t)
+}
+
 func assertIntegersEqual(a int, b int, t *testing.T) {
 	if a != b {
-		t.Errorf("Expected %d but got %d", a, b)
+		t.Errorf("Expected:%d but got:%d", a, b)
 	}
 }
 
 func assertStringsEqual(a string, b string, t *testing.T) {
 	if a != b {
-		t.Errorf("Expected %s but got %s", a, b)
+		t.Errorf("Expected:%s but got:%s", a, b)
+		t.Errorf("%d, %d", len(a), len(b))
 	}
 }
