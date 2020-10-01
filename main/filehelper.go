@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func aggregateFileContents(filePaths []string) string{
+func aggregateFileContents(filePaths []string) string {
 	aggregateContent := ""
 	for _, filePath := range filePaths {
 		content := readFileContents(filePath)
@@ -16,7 +16,7 @@ func aggregateFileContents(filePaths []string) string{
 	return strings.TrimSpace(aggregateContent)
 }
 
-func readFileContents(filePath string)string{
+func readFileContents(filePath string) string {
 	file, err := os.Open(filePath)
 	if err != nil {
 		log.Fatalf("cannot open %v", filePath)
@@ -29,7 +29,12 @@ func readFileContents(filePath string)string{
 	return string(content)
 }
 
-func splitStringIntoChunks(content string, numChunks int) []string {
+func splitStringIntoChunks(content string, chunksRequested int) []string {
+	approximateNumberOfWords := strings.Count(" ", content) + 1 // one space = two words
+	numChunks := approximateNumberOfWords
+	if chunksRequested < approximateNumberOfWords {
+		numChunks = chunksRequested
+	}
 	chunks := make([]string, numChunks)
 	contentLength := len(content)
 	shardSize := contentLength / numChunks

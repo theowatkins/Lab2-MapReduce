@@ -21,7 +21,6 @@ func main() {
 	//Step 1. Read input files and pass content into map
 	allContent := aggregateFileContents(os.Args[1:])
 	chunks := splitStringIntoChunks(allContent, NumberOfMapTasks)
-
 	intermediateKeyValuePairs := runMapWithHeartbeat(chunks, mapFunction)
 	sort.Sort(ByKey(intermediateKeyValuePairs))
 	runReduceWithHeartbeat(&intermediateKeyValuePairs, reduceFunction, OutputFileName)
@@ -63,6 +62,7 @@ func runReduceWithHeartbeat(
 	// 2. Create reduce jobs
 	var workUnits = []WorkUnit{}
 	intermediatePairs := *intermediatePairsRef
+
 	regions := getRegionsForUniqueKeys(intermediatePairsRef)
 
 	for _, region := range regions {
@@ -75,7 +75,6 @@ func runReduceWithHeartbeat(
 		}
 		workUnit := createReduceWorkUnit(key, values, reduceFunction, outputFile)
 		workUnits = append(workUnits, workUnit)
-
 	}
 
 	// 3. Run jobs with heartbeat

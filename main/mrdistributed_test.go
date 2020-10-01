@@ -62,6 +62,18 @@ func TestRegionOfUniqueKeysMultipleDifferentAndSame(t *testing.T) {
 	assertIntegersEqual(3, result[1].end, t)
 }
 
+func TestRunMapWithHeartbeat(t *testing.T) {
+	chunk := "hello world"
+	chunks := []string{chunk}
+
+	keyValueResult := runMapWithHeartbeat(chunks, Map)
+	assertIntegersEqual(2, len(keyValueResult), t)
+	assertStringsEqual("hello", keyValueResult[0].Key, t)
+	assertStringsEqual("1", keyValueResult[0].Value, t)
+	assertStringsEqual("world", keyValueResult[1].Key, t)
+	assertStringsEqual("1", keyValueResult[1].Value, t)
+}
+
 func assertIntegersEqual(a int, b int, t *testing.T) {
 	if a != b {
 		t.Errorf("Expected %d but got %d", a, b)

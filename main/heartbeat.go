@@ -9,8 +9,8 @@ const MaxNumberOfNeighbors = 1
 const TimeBetweenHeartbeats = time.Second
 
 type Heartbeat struct {
-	nodeId  string
-	counter int64
+	nodeId         string
+	counter        int64
 	troubleCounter int
 }
 
@@ -33,7 +33,7 @@ func runJobsWithHeartbeat(workUnits []WorkUnit) {
 		workIndex := workIndex
 		work := work
 		go func() {
-			performJobWithHeartbeat(
+			runJobWithHeartbeat(
 				workIndex,
 				neighborsChannels[generateNodeId(workIndex)],
 				work.work)
@@ -61,7 +61,7 @@ func runJobsWithHeartbeat(workUnits []WorkUnit) {
  * 1. Do some operation and writing to a channel
  * 2. Listen to the output of that channel and doing something with it.
  */
-func performJobWithHeartbeat(
+func runJobWithHeartbeat(
 	jobId int,
 	neighborsChannel HeartbeatChannels,
 	job func()) {
@@ -177,15 +177,15 @@ func heartbeatTick(
  *
  */
 func updateHeartbeatTable(table *HeartbeatTable, update Heartbeat, quitChannel chan bool) {
-	for _, entry := range table.heartbeats {
-		if update.nodeId == entry.nodeId {
-			if update.counter > entry.counter {
-				entry.counter = update.counter
-			} else if update.counter == entry.counter && entry.troubleCounter < 3 {
-				entry.troubleCounter++
-			} else {
-				quitChannel <- true
-			}
-		}
-	}
+	//for _, entry := range table.heartbeats {
+	//	if update.nodeId == entry.nodeId {
+	//		if update.counter > entry.counter {
+	//			entry.counter = update.counter
+	//		} else if update.counter == entry.counter && entry.troubleCounter < 3 {
+	//			entry.troubleCounter++
+	//		} else {
+	//			//quitChannel <- true
+	//		}
+	//	}
+	//}
 }
