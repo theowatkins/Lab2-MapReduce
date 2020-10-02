@@ -1,11 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"sync"
 	"time"
 )
 
-const TimeBetweenHeartbeats = 100 * time.Millisecond
+const TimeBetweenHeartbeats = 10 * time.Millisecond
 const maxTrouble = 10
 
 type Heartbeat struct {
@@ -42,7 +43,7 @@ func runJobsWithHeartbeat(workUnits []WorkUnit) {
 	//TODO: check kill channel and redistribute work accordingly
 	wg.Wait()
 
-	channelMap := make(map[chan Heartbeat]int)
+	channelMap := make(map[HeartbeatChannel]int)
 
 	for _, channelGroup := range neighborsChannels {
 		for _, channel := range channelGroup {
@@ -91,6 +92,7 @@ func runJobWithHeartbeat(
 
 const NeighborToSendTo = 0
 const TicksTilSend = 5
+const NeighborhoodSize = numberOfNeighbors + 1
 
 func runHeartBeatThread(
 	threadId string,
@@ -100,15 +102,20 @@ func runHeartBeatThread(
 
 	threadWaitGroup := new(sync.WaitGroup)
 	threadHeartbeat := Heartbeat{threadId, 0, 0}
-	theadAggregateChannel := make(chan HeartbeatTable)
+	theadAggregateChannel := make(chan []Heartbeat)
 	theadIsAlive := true
-	//TODO: make number of neighbors variable
-	threadHeartbeatTable := []Heartbeat{threadHeartbeat, nil, nil, nil}
+	threadHeartbeatTable := make([]Heartbeat, NeighborhoodSize)
 	
 	//add thread to heartbeat table before its heart starts beating
+	//and mark spots for neighbors as not populated yet
 	threadHeartbeatTable[0] = threadHeartbeat
+	for i := 1; i < NeighborhoodSize; i++ {
+		//counter of -1 means uninitialized in table
+		threadHeartbeatTable[i].counter = -1
+	}
+
 	/*
-	 * Heart beat thread - Increments counter and sends to neighbor when
+	 * Heart beat thread - Increments counter and sends table to neighbors after a few heartbeats
 	 */
 	threadWaitGroup.Add(1)
 	go func() {
@@ -186,36 +193,43 @@ func heartbeatTick(heartbeat *Heartbeat) {
 /* Updates heartbeat table and notifies of any dead nodes
  *
  */
-func updateHeartbeatTable(table *HeartbeatTable, update HeartbeatTable, curId string, quitChannel chan bool, killChannel chan string) {
+func updateHeartbeatTable(table *[]Heartbeat, update []Heartbeat, curId string, quitChannel chan bool, killChannel chan string) {
+	fmt.Println("Before: ", (*table))
+	fmt.Println("Update: ", update)
+	fmt.Println("Updating...")
+
 	//TODO: don't love 2 for loops but kind of necessary rn bc nodeId is a string and not the index in the table
 	//so the tables aren't in the same order accross nodes
 	for _, newHb := range update {
-		//don't update your own heartbeat bc you're already handling that
-		if newHb.nodeId != curId {
-			for _, existingHb := range (*table) {
-				if existingHb != nil && existingHb.nodeId == newHb.nodeId {
+		if newHb.counter != -1 && newHb.nodeId != curId {
+			//skip first slot because that's your own heartbeat
+			for i := 1; i < len(*table); i++ {
+				if (*table)[i].counter != -1 && (*table)[i].nodeId == newHb.nodeId {
 					//update entry
-					if existingHb.counter < newHb.counter {
+					if (*table)[i].counter < newHb.counter {
 						//still beating
-						existingHb.counter = newHb.counter
-						existingHb.troubleCounter = 0
-					}
-					else if existingHb.counter >= newHb.counter && existingHb.troubleCounter < maxTrouble {
+						(*table)[i].counter = newHb.counter
+						(*table)[i].troubleCounter = 0
+					} else if (*table)[i].counter >= newHb.counter && (*table)[i].troubleCounter < maxTrouble {
 						//might be dead
-						existingHb.troubleCounter++
-					}
-					else {
+						(*table)[i].troubleCounter++
+					} else {
 						//dead
-						killChannel <- existingHb.nodeId
+						killChannel <- (*table)[i].nodeId
 						//remove from table
-						existingHb = nil
+						(*table)[i].counter = -1
 					}
-				}
-				//add entry if it doesn't exist already
-				else if existingHb == nil {
-					existingHb = newHb
+				} else if (*table)[i].counter == -1 {
+					//add to table if entry doesn't already exist
+					(*table)[i].nodeId = newHb.nodeId
+					(*table)[i].counter = newHb.counter 
+					(*table)[i].troubleCounter = newHb.troubleCounter
+					break
 				}
 			}
 		}
 	}
+
+	fmt.Println("After: ", (*table))
+	fmt.Println()
 }

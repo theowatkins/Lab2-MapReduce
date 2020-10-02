@@ -17,7 +17,7 @@ func createNeighborhood(neighborhoodSize int) HeartbeatChannelMap {
 
 	for sourceId, sourceAssignments := range assignments {
 		for _, sourceAssignmentId := range sourceAssignments {
-			assignmentChannel := make(chan Heartbeat)
+			assignmentChannel := make(chan []Heartbeat)
 			neighborhood[sourceId] = append(neighborhood[sourceId], assignmentChannel)
 			neighborhood[sourceAssignmentId] = append(neighborhood[sourceId], assignmentChannel)
 		}
