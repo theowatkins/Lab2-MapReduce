@@ -1,9 +1,8 @@
 package main
 
 import (
-	"fmt"
-	"os"
-	"time"
+	//"time"
+	//"fmt"
 )
 
 type WorkUnit struct {
@@ -21,7 +20,7 @@ type KeyValueRegion struct {
 func mapJob(
 	chunk string,
 	mapFunction func(contents string) []KeyValue) []KeyValue {
-	time.Sleep(time.Second * 2)
+	//time.Sleep(time.Second * 2)
 	var intermediateKeyValuePairs []KeyValue
 	intermediateKeyValuePairs = mapFunction(chunk)
 	return intermediateKeyValuePairs
@@ -30,9 +29,9 @@ func mapJob(
 func reduceJob(
 	key string,
 	values []string,
-	reduceFunction ReduceFunction) string {
-	time.Sleep(time.Second * 2)
-	response := key + " " + reduceFunction(key, values) + "\n"
+	reduceFunction ReduceFunction) KeyValue {
+	//time.Sleep(time.Second * 2)
+	response := KeyValue{key, reduceFunction(key, values)}
 	return response
 }
 
@@ -58,14 +57,13 @@ func createReduceWorkUnit(
 	chunkKey string,
 	values []string,
 	reduceFunction ReduceFunction,
-	outputFile *os.File) WorkUnit {
+	output *[]KeyValue) WorkUnit {
 
 	var workUnit = WorkUnit{}
 
-	//TODO : Because of the random order of execution of goroutines output is not sorted.
 	workUnit.work = func() {
-		s := reduceJob(chunkKey, values, reduceFunction)
-		fmt.Fprintf(outputFile, s)
+		kv := reduceJob(chunkKey, values, reduceFunction)
+		*output = append(*output, kv)
 	}
 
 	return workUnit

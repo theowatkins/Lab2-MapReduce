@@ -45,6 +45,7 @@ func runMapWithHeartbeat(chunks []string, mapFunction MapFunction) []KeyValue {
 	}
 
 	runJobsWithHeartbeat(workUnits)
+	fmt.Println("MAP DONE")
 	return intermediateKeyValuePairs
 }
 
@@ -58,6 +59,7 @@ func runReduceWithHeartbeat(
 	reduceFunction ReduceFunction,
 	outputFilePath string) {
 
+	output := make([]KeyValue, 0)
 	outputFile, _ := os.Create(outputFilePath)
 
 	// 2. Create reduce jobs
@@ -74,10 +76,19 @@ func runReduceWithHeartbeat(
 			values = append(values, intermediatePairs[intermediatePairIndex].Value)
 			keys = append(keys, intermediatePairs[intermediatePairIndex].Key)
 		}
-		workUnit := createReduceWorkUnit(key, values, reduceFunction, outputFile)
+		workUnit := createReduceWorkUnit(key, values, reduceFunction, &output)
 		workUnits = append(workUnits, workUnit)
 	}
 
 	// 3. Run jobs with heartbeat
 	runJobsWithHeartbeat(workUnits)
+	fmt.Println("RDUECE DONE")
+
+
+	// 4. Sort output and print to output file
+	sort.Sort(ByKey(output))
+	for _, kv := range output {
+		s := kv.Key + " " + kv.Value + "\n"
+		fmt.Fprintf(outputFile, s)
+	}
 }

@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-const TimeBetweenHeartbeats = 10 * time.Millisecond
+const TimeBetweenHeartbeats = time.Second
 const maxTrouble = 10
 
 type Heartbeat struct {
@@ -195,9 +195,9 @@ func updateHeartbeatTable(
 	curId int,
 	killChannel KillChannel,
 ) {
-	fmt.Println("Before: ", (*table))
-	fmt.Println("Update: ", update)
-	fmt.Println("Updating...")
+	// fmt.Println("Before: ", (*table))
+	// fmt.Println("Update: ", update)
+	// fmt.Println("Updating...")
 
 	//TODO: don't love 2 for loops but kind of necessary rn bc nodeId is a string and not the index in the table
 	//so the tables aren't in the same order accross nodes
@@ -215,6 +215,7 @@ func updateHeartbeatTable(
 						//might be dead
 						(*table)[i].troubleCounter++
 					} else {
+						fmt.Println("NODE DIED AHHHHHHHHHHHHH")
 						//dead
 						killChannel <- (*table)[i].nodeId
 						//remove from table
@@ -231,6 +232,6 @@ func updateHeartbeatTable(
 		}
 	}
 
-	fmt.Println("After: ", (*table))
-	fmt.Println()
+	// fmt.Println("After: ", (*table))
+	// fmt.Println()
 }
