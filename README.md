@@ -14,4 +14,4 @@ The above command will run the program on the pg-metamorphosis.txt file and stor
 
 $ ./sequential_start.sh
 
-A diff of mr-distributed-out and mr-sequential-out will show that the outputs are identical.  
+A diff of mr-distributed-out and mr-sequential-out will show that the outputs are identical. See ExampleRun.png for example.
