@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"time"
 )
 
 type WorkUnit struct {
@@ -20,6 +21,7 @@ type KeyValueRegion struct {
 func mapJob(
 	chunk string,
 	mapFunction func(contents string) []KeyValue) []KeyValue {
+	time.Sleep(time.Second * 2)
 	var intermediateKeyValuePairs []KeyValue
 	intermediateKeyValuePairs = mapFunction(chunk)
 	return intermediateKeyValuePairs
@@ -29,6 +31,7 @@ func reduceJob(
 	key string,
 	values []string,
 	reduceFunction ReduceFunction) string {
+	time.Sleep(time.Second * 2)
 	response := key + " " + reduceFunction(key, values) + "\n"
 	return response
 }
