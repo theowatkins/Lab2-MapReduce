@@ -10,22 +10,22 @@ const TimeBetweenHeartbeats = 10 * time.Millisecond
 const maxTrouble = 10
 
 type Heartbeat struct {
-	nodeId         string
+	nodeId         int
 	counter        int64
 	troubleCounter int
 }
 
 type HeartbeatChannel chan []Heartbeat
 type HeartbeatChannels []HeartbeatChannel
-type HeartbeatChannelMap map[string]HeartbeatChannels
-type NeighborAssignments map[string][]string
+type HeartbeatChannelMap map[int]HeartbeatChannels
+type NeighborAssignments map[int][]int
+type KillChannel chan int
 
 func runJobsWithHeartbeat(workUnits []WorkUnit) {
 	numberOfJobs := len(workUnits)
 	neighborsChannels := createNeighborhood(numberOfJobs)
 	wg := new(sync.WaitGroup)
-	killChannel := make(chan string)
-
+	killChannel := make(KillChannel)
 
 	for workIndex, work := range workUnits {
 		wg.Add(1)
@@ -34,7 +34,7 @@ func runJobsWithHeartbeat(workUnits []WorkUnit) {
 		go func() {
 			runJobWithHeartbeat(
 				workIndex,
-				neighborsChannels[generateNodeId(workIndex)],
+				neighborsChannels[workIndex],
 				work.work,
 				killChannel)
 			wg.Done()
@@ -66,7 +66,7 @@ func runJobWithHeartbeat(
 	jobId int,
 	neighborsChannel HeartbeatChannels,
 	job func(),
-	killChannel chan string) {
+	killChannel KillChannel) {
 
 	jobWaitGroup := new(sync.WaitGroup)
 	quitHeartbeatChannel := make(chan bool)
@@ -74,7 +74,7 @@ func runJobWithHeartbeat(
 	//1. Begin heartbeat
 	jobWaitGroup.Add(1)
 	go func() {
-		runHeartBeatThread(generateNodeId(jobId), neighborsChannel, quitHeartbeatChannel, killChannel)
+		runHeartBeatThread(jobId, neighborsChannel, quitHeartbeatChannel, killChannel)
 		close(quitHeartbeatChannel)
 		jobWaitGroup.Done()
 	}()
@@ -95,19 +95,19 @@ const TicksTilSend = 5
 const NeighborhoodSize = numberOfNeighbors + 1
 
 func runHeartBeatThread(
-	threadId string,
+	threadIndex int,
 	neighborhoodChannels HeartbeatChannels,
 	quitChannel chan bool,
-	killChannel chan string) {
+	killChannel KillChannel) {
 
 	threadWaitGroup := new(sync.WaitGroup)
 	theadAggregateChannel := make(chan []Heartbeat)
 	theadIsAlive := true
 	threadHeartbeatTable := make([]Heartbeat, NeighborhoodSize)
-	
+
 	//add thread to heartbeat table before its heart starts beating
 	//and mark spots for neighbors as not populated yet
-	threadHeartbeatTable[0] = Heartbeat{threadId, 0, 0}
+	threadHeartbeatTable[0] = Heartbeat{threadIndex, 0, 0}
 	for i := 1; i < NeighborhoodSize; i++ {
 		//counter of -1 means uninitialized in table
 		threadHeartbeatTable[i].counter = -1
@@ -123,15 +123,13 @@ func runHeartBeatThread(
 			time.Sleep(TimeBetweenHeartbeats)
 			if theadIsAlive { //function could have exited when sleeping, do NOT touch state
 				threadHeartbeatTable[0].counter++
-			}
-			numTicks++
-			//send table
-			if numTicks == TicksTilSend {
-				if len(neighborhoodChannels) > 0 {
+				numTicks++
+				//send table
+				if numTicks == TicksTilSend {
 					neighborhoodChannels[NeighborToSendTo] <- threadHeartbeatTable
+					numTicks = 0
 				}
-				numTicks = 0
-			} 
+			}
 		}
 		threadWaitGroup.Done()
 	}()
@@ -162,7 +160,7 @@ func runHeartBeatThread(
 		for theadIsAlive {
 			select {
 			case heartbeatUpdate := <-theadAggregateChannel:
-				updateHeartbeatTable(&threadHeartbeatTable, heartbeatUpdate, threadId, quitChannel, killChannel)
+				updateHeartbeatTable(&threadHeartbeatTable, heartbeatUpdate, threadIndex, killChannel)
 			default:
 			}
 		}
@@ -188,11 +186,15 @@ func heartbeatTick(heartbeat *Heartbeat) {
 	heartbeat.counter++
 }
 
-
 /* Updates heartbeat table and notifies of any dead nodes
  *
  */
-func updateHeartbeatTable(table *[]Heartbeat, update []Heartbeat, curId string, quitChannel chan bool, killChannel chan string) {
+func updateHeartbeatTable(
+	table *[]Heartbeat,
+	update []Heartbeat,
+	curId int,
+	killChannel KillChannel,
+) {
 	fmt.Println("Before: ", (*table))
 	fmt.Println("Update: ", update)
 	fmt.Println("Updating...")
@@ -221,7 +223,7 @@ func updateHeartbeatTable(table *[]Heartbeat, update []Heartbeat, curId string, 
 				} else if (*table)[i].counter == -1 {
 					//add to table if entry doesn't already exist
 					(*table)[i].nodeId = newHb.nodeId
-					(*table)[i].counter = newHb.counter 
+					(*table)[i].counter = newHb.counter
 					(*table)[i].troubleCounter = newHb.troubleCounter
 					break
 				}

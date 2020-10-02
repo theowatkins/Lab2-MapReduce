@@ -29,11 +29,11 @@ func createNeighborhood(neighborhoodSize int) HeartbeatChannelMap {
 func createRandomNeighborhoodAssignments(neighborhoodSize int) NeighborAssignments {
 	relationships := make(NeighborAssignments)
 	for nodeIndex := 0; nodeIndex < neighborhoodSize; nodeIndex++ {
-		nodeId := generateNodeId(nodeIndex)
-		relationships[nodeId] = []string{}
+		nodeId := nodeIndex
+		relationships[nodeId] = []int{}
 
 		for neighborIndex := 0; neighborIndex < numberOfNeighbors; neighborIndex++ {
-			assignedNeighbor := generateNodeId(rand.Intn(neighborhoodSize))
+			assignedNeighbor := rand.Intn(neighborhoodSize)
 			if isNewRelationship(assignedNeighbor, nodeId, relationships) {
 				relationships[nodeId] = append(relationships[nodeId], assignedNeighbor)
 			}
@@ -46,7 +46,7 @@ func generateNodeId(nodeIndex int) string {
 	return strconv.Itoa(nodeIndex)
 }
 
-func isNewRelationship(sourceId string, targetId string, heartbeatMap NeighborAssignments) bool {
+func isNewRelationship(sourceId int, targetId int, heartbeatMap NeighborAssignments) bool {
 	for _, sourceNeighborId := range heartbeatMap[sourceId] {
 		if sourceNeighborId == targetId {
 			return false
