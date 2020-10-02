@@ -21,9 +21,9 @@ import "sort"
 
 
 
-func mainSequential() { // renamed bc conflict with main in distributed version
+func main() { // renamed bc conflict with main in distributed version
 	if len(os.Args) < 2 {
-		fmt.Fprintf(os.Stderr, "Usage: mrsequential xxx.so inputfiles...\n")
+		fmt.Fprintf(os.Stderr, "Usage: mrsequential.go inputfiles...\n")
 		os.Exit(1)
 	}
 
@@ -38,7 +38,7 @@ func mainSequential() { // renamed bc conflict with main in distributed version
 	for _, filename := range os.Args[1:] {
 		file, err := os.Open(filename)
 		if err != nil {
-			log.Fatalf("cannot open %v", filename)
+			log.Fatal(err)
 		}
 		content, err := ioutil.ReadAll(file)
 		if err != nil {
@@ -58,7 +58,7 @@ func mainSequential() { // renamed bc conflict with main in distributed version
 
 	sort.Sort(ByKey(intermediate))
 
-	oname := "mr-out-0"
+	oname := "mr-sequential-out"
 	ofile, _ := os.Create(oname)
 
 	//

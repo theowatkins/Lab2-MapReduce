@@ -12,8 +12,7 @@ func mapJob(
 	responseChannel chan []KeyValue,
 	wg *sync.WaitGroup) {
 		defer wg.Done()
-		//TODO: Implement Heartbeat protocol lol
-		intermediateKeyValuePairs := mapFunction(chunk) // TODO: Actually give it the file name
+		intermediateKeyValuePairs := mapFunction(chunk) 
 		responseChannel <- intermediateKeyValuePairs
 }
 
@@ -21,9 +20,9 @@ func reduceJob(
 	jobId int,
 	key string,
 	values []string,
-	responseChannel chan string,
+	responseChannel chan KeyValue,
 	wg *sync.WaitGroup) {
 		defer wg.Done()
-		response := key + " " + strconv.Itoa(len(values)) + "\n"
+		response := KeyValue{key, strconv.Itoa(len(values))}
 		responseChannel <- response
 	}
