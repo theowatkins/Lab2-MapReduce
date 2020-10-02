@@ -54,7 +54,7 @@ func mainSequential() { // renamed bc conflict with main in distributed version
 
 	sort.Sort(ByKey(intermediate))
 
-	oname := "mr-out-0"
+	oname := "mr-out-1"
 	ofile, _ := os.Create(oname)
 
 	//
