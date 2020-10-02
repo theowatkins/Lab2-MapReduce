@@ -101,14 +101,13 @@ func runHeartBeatThread(
 	killChannel chan string) {
 
 	threadWaitGroup := new(sync.WaitGroup)
-	threadHeartbeat := Heartbeat{threadId, 0, 0}
 	theadAggregateChannel := make(chan []Heartbeat)
 	theadIsAlive := true
 	threadHeartbeatTable := make([]Heartbeat, NeighborhoodSize)
 	
 	//add thread to heartbeat table before its heart starts beating
 	//and mark spots for neighbors as not populated yet
-	threadHeartbeatTable[0] = threadHeartbeat
+	threadHeartbeatTable[0] = Heartbeat{threadId, 0, 0}
 	for i := 1; i < NeighborhoodSize; i++ {
 		//counter of -1 means uninitialized in table
 		threadHeartbeatTable[i].counter = -1
@@ -123,7 +122,7 @@ func runHeartBeatThread(
 		for theadIsAlive {
 			time.Sleep(TimeBetweenHeartbeats)
 			if theadIsAlive { //function could have exited when sleeping, do NOT touch state
-				heartbeatTick(&threadHeartbeat)
+				threadHeartbeatTable[0].counter++
 			}
 			numTicks++
 			//send table
